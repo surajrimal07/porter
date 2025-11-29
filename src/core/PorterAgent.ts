@@ -28,7 +28,7 @@ export class PorterAgent {
   private readonly messageHandler: AgentMessageHandler;
   private readonly logger: Logger;
 
-  constructor(options: PorterAgentOptions = {}) {
+  public constructor(options: PorterAgentOptions = {}) {
     const namespace = options.namespace ?? 'porter';
     const context = options.agentContext ?? this.determineContext();
 

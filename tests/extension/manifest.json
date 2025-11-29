@@ -11,20 +11,14 @@
     "contextMenus",
     "sidePanel"
   ],
-  "host_permissions": [
-    "*://*/*"
-  ],
+  "host_permissions": ["*://*/*"],
   "background": {
     "service_worker": "scripts/background.js"
   },
   "content_scripts": [
     {
-      "matches": [
-        "*://*/*"
-      ],
-      "js": [
-        "scripts/content.js"
-      ]
+      "matches": ["*://*/*"],
+      "js": ["scripts/content.js"]
     }
   ],
   "side_panel": {
@@ -32,12 +26,8 @@
   },
   "web_accessible_resources": [
     {
-      "resources": [
-        "test2.png"
-      ],
-      "matches": [
-        "*://*/*"
-      ]
+      "resources": ["test2.png"],
+      "matches": ["*://*/*"]
     }
   ],
   "icons": {

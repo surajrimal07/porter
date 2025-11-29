@@ -1,12 +1,9 @@
 {
-    "extends": "./tsconfig.json",
-    "exclude": [
-        "**/*.test.ts",
-        "**/*.spec.ts"
-    ],
-    "compilerOptions": {
-        "outDir": "dist",
-        "declaration": true,
-        "emitDeclarationOnly": true
-    }
+  "extends": "./tsconfig.json",
+  "exclude": ["**/*.test.ts", "**/*.spec.ts"],
+  "compilerOptions": {
+    "outDir": "dist",
+    "declaration": true,
+    "emitDeclarationOnly": true
+  }
 }

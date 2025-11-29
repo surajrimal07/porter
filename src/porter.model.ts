@@ -35,7 +35,7 @@ export interface AgentInfo {
 }
 
 export type Agent = {
-  ports: browser.Runtime.Port[];
+  port: browser.Runtime.Port;
   info: AgentInfo;
 };
 

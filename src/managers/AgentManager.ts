@@ -15,10 +15,8 @@ export interface AgentOperations {
   addAgent(port: Runtime.Port, context?: PorterContext): AgentId | undefined;
   queryAgents(location: Partial<BrowserLocation>): Agent[];
   getAgentById(id: AgentId): Agent | null;
-  // Return all Runtime.Port objects associated with a logical agent id
-  getPortsByAgentId(id: AgentId): Runtime.Port[];
   getAgentsByContext(context: PorterContext): Agent[];
-  getAgentByLocation(location: BrowserLocation): Agent | null;
+  getAgentsByLocation(location: BrowserLocation): Agent[];
   getAllAgents(): Agent[];
   getAllAgentsInfo(): AgentInfo[];
   hasPort(port: Runtime.Port): boolean;
@@ -27,10 +25,7 @@ export interface AgentOperations {
 }
 
 export interface AgentEventEmitter {
-  on(
-    event: 'agentSetup',
-    handler: (agentInfo: AgentInfo, port: Runtime.Port) => void
-  ): void;
+  on(event: 'agentSetup', handler: (agent: Agent) => void): void;
   on(
     event: 'agentMessage',
     handler: (message: any, info: AgentInfo) => void
@@ -39,11 +34,7 @@ export interface AgentEventEmitter {
 }
 
 export class AgentManager implements AgentOperations, AgentEventEmitter {
-  // Track potentially multiple ports per logical agent id. Some environments
-  // may create more than one Port for the same location; we must not clobber
-  // the previous port reference as that can cause messages to be delivered to
-  // only the most-recent connection and break reactivity for others.
-  private agents: Map<AgentId, Set<Runtime.Port>> = new Map();
+  private agents: Map<AgentId, Runtime.Port> = new Map();
   private agentsInfo: Map<AgentId, AgentInfo> = new Map();
   private eventHandlers: Map<string, Set<Function>> = new Map();
 
@@ -90,113 +81,91 @@ export class AgentManager implements AgentOperations, AgentEventEmitter {
       });
     }
 
-    const existing = this.getAgentByLocation({
-      context: determinedContext,
-      tabId,
-      frameId,
-    })?.info?.id;
-
-    const agentId = existing || (uuidv4() as AgentId);
+    const agentId = uuidv4() as AgentId;
 
     this.logger.debug(`Adding agent with id: ${agentId}`);
 
-    // Maintain a set of ports per agent id and add this port to the set.
-    if (!this.agents.has(agentId)) {
-      this.agents.set(agentId, new Set());
-    }
-    this.agents.get(agentId)!.add(port);
+    this.agents.set(agentId, port);
 
-    const existingAgentInfo = this.agentsInfo.get(agentId);
-    const now = Date.now();
-    let agentInfo: AgentInfo;
-
-    if (existingAgentInfo) {
-      agentInfo = existingAgentInfo;
-      agentInfo.lastActiveAt = now;
-    } else {
-      agentInfo = {
-        id: agentId,
-        location: { context: determinedContext, tabId, frameId },
-        createdAt: now,
-        lastActiveAt: now,
-      };
-      this.agentsInfo.set(agentId, agentInfo);
-    }
+    const agentInfo: AgentInfo = {
+      id: agentId,
+      location: { context: determinedContext, tabId, frameId },
+      createdAt: Date.now(),
+      lastActiveAt: Date.now(),
+    };
+    this.agentsInfo.set(agentId, agentInfo);
 
     this.logger.debug(`Constructed agent info: ${JSON.stringify(agentInfo)}`);
     port.onMessage.addListener((message: any) =>
       this.emit('agentMessage', message, agentInfo)
     );
 
-    // When this specific port disconnects, remove it from the set. Only emit
-    // agentDisconnect and remove the AgentInfo once all ports for that agentId
-    // are gone.
+    const agent: Agent = { port, info: agentInfo };
     port.onDisconnect.addListener(() => {
-      this.logger.debug('Port disconnected for agent id, removing port.', {
-        agentId,
-        portName: port.name,
+      this.emit('agentDisconnect', agentInfo);
+      this.logger.debug('Agent disconnected, removing from manager. ', {
+        agentInfo,
       });
-      this.removePortFromAgent(agentId, port);
+      this.removeAgent(agentId);
     });
 
-    this.emit('agentSetup', agentInfo, port);
+    this.emit('agentSetup', agent);
     this.logger.debug('Setup complete for adding agent. ', {
       agentInfo,
     });
     return agentId;
   }
 
-  public getAgentByLocation(location: BrowserLocation): Agent | null {
+  public getAgentsByLocation(location: BrowserLocation): Agent[] {
     const { context, tabId, frameId } = location;
 
-    const infoEntry: [AgentId, AgentInfo] | undefined = Array.from(
+    const infoEntries: [AgentId, AgentInfo][] = Array.from(
       this.agentsInfo.entries()
-    ).find(
+    ).filter(
       ([key, info]) =>
         info.location.context === context &&
         info.location.tabId === tabId &&
         info.location.frameId === frameId
     );
-    if (infoEntry === undefined) {
-      this.logger.error('No agent found for location. ', {
+
+    if (infoEntries.length === 0) {
+      this.logger.debug('No agents found for location. ', {
         location,
       });
-      return null;
-    }
-    const agentId = infoEntry[0];
-    const portSet = this.agents.get(agentId);
-    const info = this.agentsInfo.get(agentId);
-    if (!portSet || !info) {
-      this.logger.error('No agent found for location. ', {
-        location,
-      });
-      return null;
+      return [];
     }
 
-    const ports = Array.from(portSet);
-    if (ports.length === 0) {
-      this.logger.error('No port available for agent id. ', { agentId });
-      return null;
-    }
-    return { ports, info };
+    return infoEntries
+      .map(([agentId, info]) => {
+        const port = this.agents.get(agentId);
+        return { port, info };
+      })
+      .filter(
+        (agent): agent is Agent =>
+          agent.port !== undefined && agent.info !== undefined
+      );
   }
 
   public getAgentsByContext(context: PorterContext): Agent[] {
     let infoForAgents = Array.from(this.agentsInfo.entries()).filter(
       ([key, value]) => value.location.context === context
     );
-    return infoForAgents.map(([key, value]) => ({
-      ports: Array.from(this.agents.get(key) || []),
-      info: value,
-    }));
+    return infoForAgents
+      .map(([key, value]) => ({
+        port: this.agents.get(key),
+        info: value,
+      }))
+      .filter((agent): agent is Agent => agent.port !== undefined);
   }
 
   public getAllAgents(): Agent[] {
     let allInfo = Array.from(this.agentsInfo.entries());
-    return allInfo.map(([key, value]) => ({
-      ports: Array.from(this.agents.get(key) || []),
-      info: value,
-    }));
+    return allInfo
+      .map(([key, value]) => ({
+        port: this.agents.get(key),
+        info: value,
+      }))
+      .filter((agent): agent is Agent => agent.port !== undefined);
   }
 
   public queryAgents(location: Partial<BrowserLocation>): Agent[] {
@@ -214,29 +183,24 @@ export class AgentManager implements AgentOperations, AgentEventEmitter {
         return hasContext && hasTabId && hasFrameId;
       }
     );
-    return infoForAgents.map(([key, value]) => ({
-      ports: Array.from(this.agents.get(key) || []),
-      info: value,
-    }));
+    return infoForAgents
+      .map(([key, value]) => ({
+        port: this.agents.get(key),
+        info: value,
+      }))
+      .filter((agent): agent is Agent => agent.port !== undefined);
   }
 
   public getAgentById(id: AgentId): Agent | null {
-    const ports = this.agents.get(id);
+    let port = this.agents.get(id);
     let info = this.agentsInfo.get(id);
-    if (!ports || !info) {
+    if (!port || !info) {
       this.logger.error('No agent found for agentId. ', {
         id,
       });
       return null;
     }
-    const portsArr = Array.from(ports);
-    return { ports: portsArr, info };
-  }
-
-  public getPortsByAgentId(id: AgentId): Runtime.Port[] {
-    const ports = this.agents.get(id);
-    if (!ports) return [];
-    return Array.from(ports);
+    return { port, info };
   }
 
   public getAllAgentsInfo(): AgentInfo[] {
@@ -244,12 +208,10 @@ export class AgentManager implements AgentOperations, AgentEventEmitter {
   }
 
   public hasPort(port: Runtime.Port): boolean {
-    for (const ports of this.agents.values()) {
-      for (const p of ports) {
-        if (p.name === port.name) return true;
-      }
-    }
-    return false;
+    const matchingPort = Array.from(this.agents.values()).find(
+      (p) => p.name === port.name
+    );
+    return !!matchingPort;
   }
 
   public removeAgent(agentId: AgentId) {
@@ -258,32 +220,6 @@ export class AgentManager implements AgentOperations, AgentEventEmitter {
       this.agentsInfo.delete(agentId);
     } else {
       this.logger.error('No agent found to remove. ', {
-        agentId,
-      });
-    }
-  }
-
-  private removePortFromAgent(agentId: AgentId, port: Runtime.Port) {
-    const ports = this.agents.get(agentId);
-    const info = this.agentsInfo.get(agentId);
-    if (!ports) return;
-
-    ports.delete(port);
-    // If ports remain, do not remove the agent yet.
-    if (ports.size > 0) {
-      this.logger.debug('Ports remain for agent, keeping agent info.', {
-        agentId,
-        remaining: ports.size,
-      });
-      return;
-    }
-
-    // No ports remain: remove agent and emit disconnect
-    this.agents.delete(agentId);
-    if (info) {
-      this.agentsInfo.delete(agentId);
-      this.emit('agentDisconnect', info);
-      this.logger.debug('All ports removed for agent; agent removed.', {
         agentId,
       });
     }

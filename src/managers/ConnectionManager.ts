@@ -69,7 +69,21 @@ export class ConnectionManager {
       }
 
       // Now add the agent with the provided context
-      this.agentOperations.addAgent(port);
+      const agentId = this.agentOperations.addAgent(port);
+
+      if (!agentId) {
+        throw new PorterError(
+          PorterErrorType.INVALID_CONTEXT,
+          'Failed to add agent'
+        );
+      }
+
+      // Get the agent info to send back
+      const agent = this.agentOperations.getAgentById(agentId);
+
+      if (agent) {
+        this.confirmConnection(agent);
+      }
 
       this.agentOperations.printAgents();
     } catch (error) {
@@ -109,14 +123,20 @@ export class ConnectionManager {
     }
   }
 
-  public confirmConnection(port: Runtime.Port, info: AgentInfo) {
+  public confirmConnection(agent: Agent) {
     this.logger.debug('Sending confirmation message back to initiator ', {
-      info,
+      agent,
     });
-    port.postMessage({
+    if (!agent.port) {
+      throw new PorterError(
+        PorterErrorType.INVALID_PORT,
+        'Agent port is undefined when confirming connection'
+      );
+    }
+    agent.port.postMessage({
       action: 'porter-handshake',
       payload: {
-        info: info,
+        info: agent.info,
         currentConnections: this.agentOperations.getAllAgentsInfo(),
       },
     });

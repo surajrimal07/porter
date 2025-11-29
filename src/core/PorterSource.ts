@@ -72,14 +72,11 @@ export class PorterSource {
       this.messageHandler.handleDisconnect(metadata);
     });
 
-    this.agentManager.on(
-      'agentSetup',
-      (agentInfo: AgentInfo, port: Runtime.Port) => {
-        this.logger.debug(`Handling agent setup`, { agentInfo, port });
-        this.messageHandler.handleConnect(agentInfo);
-        this.connectionManager.confirmConnection(port, agentInfo);
-      }
-    );
+    this.agentManager.on('agentSetup', (agent: Agent) => {
+      this.logger.debug(`Handling agent setup`, { agent });
+      this.messageHandler.handleConnect(agent.info);
+      this.connectionManager.confirmConnection(agent);
+    });
 
     browser.runtime.onConnect.addListener(
       this.connectionManager.handleConnection.bind(this.connectionManager)
@@ -143,8 +140,8 @@ export class PorterSource {
     return this.agentManager.getAgentById(agentId);
   }
 
-  public getAgentByLocation(location: BrowserLocation): Agent | null {
-    return this.agentManager.getAgentByLocation(location);
+  public getAgentsByLocation(location: BrowserLocation): Agent[] {
+    return this.agentManager.getAgentsByLocation(location);
   }
 
   public queryAgents(location: Partial<BrowserLocation>): Agent[] {
@@ -161,7 +158,7 @@ export interface PorterAPI {
   onDisconnect: (listener: Listener<'onDisconnect'>) => Unsubscribe;
   onMessagesSet: (listener: Listener<'onMessagesSet'>) => Unsubscribe;
   getAgentById: (id: AgentId) => Agent | null;
-  getAgentByLocation: (location: BrowserLocation) => Agent | null;
+  getAgentsByLocation: (location: BrowserLocation) => Agent[];
   queryAgents: (location: Partial<BrowserLocation>) => Agent[];
 }
 
@@ -179,7 +176,7 @@ export function source(
     onDisconnect: instance.onDisconnect.bind(instance),
     onMessagesSet: instance.onMessagesSet.bind(instance),
     getAgentById: instance.getAgentById.bind(instance),
-    getAgentByLocation: instance.getAgentByLocation.bind(instance),
+    getAgentsByLocation: instance.getAgentsByLocation.bind(instance),
     queryAgents: instance.queryAgents.bind(instance),
   };
 }

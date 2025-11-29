@@ -1,31 +1,20 @@
 {
-    "compilerOptions": {
-        "target": "ES2021",
-        "module": "ESNext",
-        "lib": [
-            "ES2021",
-            "DOM",
-            "webworker"
-        ],
-        "outDir": "./dist",
-        "rootDir": "./src",
-        "moduleResolution": "node",
-        "declaration": true,
-        "declarationDir": "./dist/types",
-        "sourceMap": true,
-        "strict": true,
-        "esModuleInterop": true,
-        "jsx": "react",
-        "skipLibCheck": true,
-        "forceConsistentCasingInFileNames": true
-    },
-    "include": [
-        "src/**/*"
-    ],
-    "exclude": [
-        "node_modules",
-        "dist",
-        "src/**/*.test.ts",
-        "src/**/__tests__/*"
-    ]
+  "compilerOptions": {
+    "target": "ES2021",
+    "module": "ESNext",
+    "lib": ["ES2021", "DOM", "webworker"],
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "moduleResolution": "node",
+    "declaration": true,
+    "declarationDir": "./dist/types",
+    "sourceMap": true,
+    "strict": true,
+    "esModuleInterop": true,
+    "jsx": "react",
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "src/**/*.test.ts", "src/**/__tests__/*"]
 }

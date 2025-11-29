@@ -9,17 +9,17 @@ onMessage({
   },
   'broadcast-message': (message) => {
     console.log('Received broadcast:', message.payload);
-  }
+  },
 });
 
 // Run tests automatically
 function runTests() {
   // Test basic messaging
   post({ action: 'test-echo', payload: 'Hello!' });
-  
+
   // Test broadcasting
   post({ action: 'test-broadcast', payload: 'Broadcast test' });
-  
+
   // Test error handling
   try {
     post({ action: 'non-existent' });
