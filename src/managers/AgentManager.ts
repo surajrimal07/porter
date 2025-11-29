@@ -103,13 +103,22 @@ export class AgentManager implements AgentOperations, AgentEventEmitter {
     }
     this.agents.get(agentId)!.add(port);
 
-    const agentInfo: AgentInfo = {
-      id: agentId,
-      location: { context: determinedContext, tabId, frameId },
-      createdAt: Date.now(),
-      lastActiveAt: Date.now(),
-    };
-    this.agentsInfo.set(agentId, agentInfo);
+    const existingAgentInfo = this.agentsInfo.get(agentId);
+    const now = Date.now();
+    let agentInfo: AgentInfo;
+
+    if (existingAgentInfo) {
+      agentInfo = existingAgentInfo;
+      agentInfo.lastActiveAt = now;
+    } else {
+      agentInfo = {
+        id: agentId,
+        location: { context: determinedContext, tabId, frameId },
+        createdAt: now,
+        lastActiveAt: now,
+      };
+      this.agentsInfo.set(agentId, agentInfo);
+    }
 
     this.logger.debug(`Constructed agent info: ${JSON.stringify(agentInfo)}`);
     port.onMessage.addListener((message: any) =>
