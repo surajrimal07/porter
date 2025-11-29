@@ -72,11 +72,14 @@ export class PorterSource {
       this.messageHandler.handleDisconnect(metadata);
     });
 
-    this.agentManager.on('agentSetup', (agent: Agent) => {
-      this.logger.debug(`Handling agent setup`, { agent });
-      this.messageHandler.handleConnect(agent.info);
-      this.connectionManager.confirmConnection(agent);
-    });
+    this.agentManager.on(
+      'agentSetup',
+      (agentInfo: AgentInfo, port: Runtime.Port) => {
+        this.logger.debug(`Handling agent setup`, { agentInfo, port });
+        this.messageHandler.handleConnect(agentInfo);
+        this.connectionManager.confirmConnection({ info: agentInfo, port });
+      }
+    );
 
     browser.runtime.onConnect.addListener(
       this.connectionManager.handleConnection.bind(this.connectionManager)

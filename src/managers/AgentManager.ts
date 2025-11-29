@@ -27,7 +27,10 @@ export interface AgentOperations {
 }
 
 export interface AgentEventEmitter {
-  on(event: 'agentSetup', handler: (agent: Agent) => void): void;
+  on(
+    event: 'agentSetup',
+    handler: (agentInfo: AgentInfo, port: Runtime.Port) => void
+  ): void;
   on(
     event: 'agentMessage',
     handler: (message: any, info: AgentInfo) => void
@@ -125,8 +128,6 @@ export class AgentManager implements AgentOperations, AgentEventEmitter {
       this.emit('agentMessage', message, agentInfo)
     );
 
-    const agent: Agent = { port, info: agentInfo };
-
     // When this specific port disconnects, remove it from the set. Only emit
     // agentDisconnect and remove the AgentInfo once all ports for that agentId
     // are gone.
@@ -138,7 +139,7 @@ export class AgentManager implements AgentOperations, AgentEventEmitter {
       this.removePortFromAgent(agentId, port);
     });
 
-    this.emit('agentSetup', agent);
+    this.emit('agentSetup', agentInfo, port);
     this.logger.debug('Setup complete for adding agent. ', {
       agentInfo,
     });

@@ -69,21 +69,7 @@ export class ConnectionManager {
       }
 
       // Now add the agent with the provided context
-      const agentId = this.agentOperations.addAgent(port);
-
-      if (!agentId) {
-        throw new PorterError(
-          PorterErrorType.INVALID_CONTEXT,
-          'Failed to add agent'
-        );
-      }
-
-      // Get the agent info to send back
-      const agent = this.agentOperations.getAgentById(agentId);
-
-      if (agent) {
-        this.confirmConnection(agent);
-      }
+      this.agentOperations.addAgent(port);
 
       this.agentOperations.printAgents();
     } catch (error) {
