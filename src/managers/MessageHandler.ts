@@ -92,15 +92,8 @@ export class MessageHandler {
 
   private broadcastMessage(message: Message<any>): void {
     this.logger.info('Broadcasting message to all agents: ', message);
-    // Ensure we post to all ports for each logical agent id so multiple
-    // connections in the same location receive broadcasts.
     this.agentOperations.getAllAgents().forEach((agent) => {
-      const ports = (this.agentOperations as any).getPortsByAgentId
-        ? (this.agentOperations as any).getPortsByAgentId(agent.info.id)
-        : agent.port
-          ? [agent.port]
-          : [];
-      ports.forEach((p: Runtime.Port) => this.postToPort(message, p));
+      agent.ports.forEach((p: Runtime.Port) => this.postToPort(message, p));
     });
   }
 
@@ -121,12 +114,7 @@ export class MessageHandler {
       return;
     }
     agents.forEach((agent) => {
-      const ports = (this.agentOperations as any).getPortsByAgentId
-        ? (this.agentOperations as any).getPortsByAgentId(agent.info.id)
-        : agent.port
-          ? [agent.port]
-          : [];
-      ports.forEach((p: Runtime.Port) => this.postToPort(message, p));
+      agent.ports.forEach((p: Runtime.Port) => this.postToPort(message, p));
     });
   }
 
@@ -136,13 +124,7 @@ export class MessageHandler {
   ): void {
     const agents = this.agentOperations.queryAgents(location);
     agents.forEach((agent) => {
-      const ports = (this.agentOperations as any).getPortsByAgentId
-        ? (this.agentOperations as any).getPortsByAgentId(agent.info.id)
-        : agent.port
-          ? [agent.port]
-          : [];
-
-      if (!ports || ports.length === 0) {
+      if (!agent.ports || agent.ports.length === 0) {
         throw new PorterError(
           PorterErrorType.INVALID_TARGET,
           `No port found for agent`,
@@ -150,7 +132,7 @@ export class MessageHandler {
         );
       }
 
-      ports.forEach((p: Runtime.Port) => this.postToPort(message, p));
+      agent.ports.forEach((p: Runtime.Port) => this.postToPort(message, p));
     });
   }
 
@@ -159,13 +141,7 @@ export class MessageHandler {
       context,
     });
     agents.forEach((agent) => {
-      const ports = (this.agentOperations as any).getPortsByAgentId
-        ? (this.agentOperations as any).getPortsByAgentId(agent.info.id)
-        : agent.port
-          ? [agent.port]
-          : [];
-
-      if (!ports || ports.length === 0) {
+      if (!agent.ports || agent.ports.length === 0) {
         throw new PorterError(
           PorterErrorType.INVALID_TARGET,
           `No port found for agent`,
@@ -173,7 +149,7 @@ export class MessageHandler {
         );
       }
 
-      ports.forEach((p: Runtime.Port) => this.postToPort(message, p));
+      agent.ports.forEach((p: Runtime.Port) => this.postToPort(message, p));
     });
   }
 
@@ -190,20 +166,16 @@ export class MessageHandler {
   }
 
   private postToId(message: Message<any>, agentId: AgentId): void {
-    // Post to all ports associated with this logical agent id so that multiple
-    // content-script connections in the same frame receive updates.
-    const ports = (this.agentOperations as any).getPortsByAgentId
-      ? (this.agentOperations as any).getPortsByAgentId(agentId)
-      : [];
+    const agent = this.agentOperations.getAgentById(agentId);
 
-    if (!ports || ports.length === 0) {
+    if (!agent || agent.ports.length === 0) {
       throw new PorterError(
         PorterErrorType.INVALID_TARGET,
         `No agent found for key: ${agentId}`
       );
     }
 
-    ports.forEach((port: Runtime.Port) => this.postToPort(message, port));
+    agent.ports.forEach((port: Runtime.Port) => this.postToPort(message, port));
   }
 
   public onMessage(config: MessageConfig) {

@@ -109,20 +109,14 @@ export class ConnectionManager {
     }
   }
 
-  public confirmConnection(agent: Agent) {
+  public confirmConnection(port: Runtime.Port, info: AgentInfo) {
     this.logger.debug('Sending confirmation message back to initiator ', {
-      agent,
+      info,
     });
-    if (!agent.port) {
-      throw new PorterError(
-        PorterErrorType.INVALID_PORT,
-        'Agent port is undefined when confirming connection'
-      );
-    }
-    agent.port.postMessage({
+    port.postMessage({
       action: 'porter-handshake',
       payload: {
-        info: agent.info,
+        info: info,
         currentConnections: this.agentOperations.getAllAgentsInfo(),
       },
     });

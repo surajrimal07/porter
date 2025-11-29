@@ -164,22 +164,21 @@ export class AgentManager implements AgentOperations, AgentEventEmitter {
       return null;
     }
     const agentId = infoEntry[0];
-    const ports = this.agents.get(agentId);
+    const portSet = this.agents.get(agentId);
     const info = this.agentsInfo.get(agentId);
-    if (!ports || !info) {
+    if (!portSet || !info) {
       this.logger.error('No agent found for location. ', {
         location,
       });
       return null;
     }
 
-    // Prefer the most-recently-added port when returning a single port.
-    const port = Array.from(ports).slice(-1)[0];
-    if (!port) {
+    const ports = Array.from(portSet);
+    if (ports.length === 0) {
       this.logger.error('No port available for agent id. ', { agentId });
       return null;
     }
-    return { port, info };
+    return { ports, info };
   }
 
   public getAgentsByContext(context: PorterContext): Agent[] {
@@ -187,7 +186,7 @@ export class AgentManager implements AgentOperations, AgentEventEmitter {
       ([key, value]) => value.location.context === context
     );
     return infoForAgents.map(([key, value]) => ({
-      port: Array.from(this.agents.get(key) || [])[0],
+      ports: Array.from(this.agents.get(key) || []),
       info: value,
     }));
   }
@@ -195,7 +194,7 @@ export class AgentManager implements AgentOperations, AgentEventEmitter {
   public getAllAgents(): Agent[] {
     let allInfo = Array.from(this.agentsInfo.entries());
     return allInfo.map(([key, value]) => ({
-      port: Array.from(this.agents.get(key) || [])[0],
+      ports: Array.from(this.agents.get(key) || []),
       info: value,
     }));
   }
@@ -216,7 +215,7 @@ export class AgentManager implements AgentOperations, AgentEventEmitter {
       }
     );
     return infoForAgents.map(([key, value]) => ({
-      port: Array.from(this.agents.get(key) || [])[0],
+      ports: Array.from(this.agents.get(key) || []),
       info: value,
     }));
   }
@@ -230,8 +229,8 @@ export class AgentManager implements AgentOperations, AgentEventEmitter {
       });
       return null;
     }
-    const port = Array.from(ports).slice(-1)[0];
-    return { port, info };
+    const portsArr = Array.from(ports);
+    return { ports: portsArr, info };
   }
 
   public getPortsByAgentId(id: AgentId): Runtime.Port[] {

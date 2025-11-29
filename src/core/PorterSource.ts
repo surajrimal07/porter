@@ -77,7 +77,7 @@ export class PorterSource {
       (agentInfo: AgentInfo, port: Runtime.Port) => {
         this.logger.debug(`Handling agent setup`, { agentInfo, port });
         this.messageHandler.handleConnect(agentInfo);
-        this.connectionManager.confirmConnection({ info: agentInfo, port });
+        this.connectionManager.confirmConnection(port, agentInfo);
       }
     );
 
