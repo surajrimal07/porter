@@ -18,6 +18,7 @@
     "test:extension": "web-ext run --source-dir ./tests/extension",
     "link:extension": "npm link && cd tests/extension && npm link porter-source",
     "dev": "concurrently \"npm run build:watch\" \"npm run test:extension\"",
+    "prepare": "npm run build",
     "prepublishOnly": "npm run build"
   },
   "exports": {
