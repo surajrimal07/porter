@@ -24,12 +24,11 @@ export interface PorterAgentOptions {
 }
 
 export class PorterAgent {
-  private static instance: PorterAgent | null = null;
   private readonly connectionManager: AgentConnectionManager;
   private readonly messageHandler: AgentMessageHandler;
   private readonly logger: Logger;
 
-  private constructor(options: PorterAgentOptions = {}) {
+  constructor(options: PorterAgentOptions = {}) {
     const namespace = options.namespace ?? 'porter';
     const context = options.agentContext ?? this.determineContext();
 
@@ -44,19 +43,6 @@ export class PorterAgent {
 
     this.logger.info('Initializing with options: ', { options, context });
     this.initializeConnection();
-  }
-
-  public static getInstance(options: PorterAgentOptions = {}): PorterAgent {
-    if (
-      !PorterAgent.instance ||
-      PorterAgent.instance.connectionManager.getNamespace() !==
-        options.namespace
-    ) {
-      PorterAgent.instance = new PorterAgent(options);
-    } else if (options.debug !== undefined) {
-      Logger.configure({ enabled: options.debug });
-    }
-    return PorterAgent.instance;
   }
 
   private async initializeConnection(): Promise<void> {
@@ -116,7 +102,7 @@ export class PorterAgent {
 }
 
 export function connect(options?: PorterAgentOptions): AgentAPI {
-  const porterInstance = PorterAgent.getInstance(options);
+  const porterInstance = new PorterAgent(options);
   return {
     type: 'agent',
     post: porterInstance.post.bind(porterInstance),
