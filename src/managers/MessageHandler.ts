@@ -170,14 +170,20 @@ export class MessageHandler {
   }
 
   private postToId(message: Message<any>, agentId: AgentId): void {
-    const agent = this.agentOperations.getAgentById(agentId);
-    if (!agent?.port) {
+    // Post to all ports associated with this logical agent id so that multiple
+    // content-script connections in the same frame receive updates.
+    const ports = (this.agentOperations as any).getPortsByAgentId
+      ? (this.agentOperations as any).getPortsByAgentId(agentId)
+      : [];
+
+    if (!ports || ports.length === 0) {
       throw new PorterError(
         PorterErrorType.INVALID_TARGET,
         `No agent found for key: ${agentId}`
       );
     }
-    this.postToPort(message, agent.port);
+
+    ports.forEach((port: Runtime.Port) => this.postToPort(message, port));
   }
 
   public onMessage(config: MessageConfig) {
