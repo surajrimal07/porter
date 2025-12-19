@@ -139,6 +139,7 @@ export class PorterSource {
   public getAgentById(agentId: AgentId): Agent | null {
     return this.agentManager.getAgentById(agentId);
   }
+  //
 
   public getAgentByLocation(location: BrowserLocation): Agent[] | null {
     return this.agentManager.getAgentByLocation(location);
