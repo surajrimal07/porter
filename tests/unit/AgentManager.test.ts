@@ -3,6 +3,7 @@ import { AgentManager } from '../../src/managers/AgentManager';
 import { Logger } from '../../src/porter.utils';
 import { PorterContext } from '../../src/porter.model';
 import { Runtime } from 'webextension-polyfill';
+import { create } from 'domain';
 
 // Mock webextension-polyfill
 jest.mock('webextension-polyfill', () => ({
@@ -26,6 +27,108 @@ jest.mock('../../src/porter.utils', () => ({
 }));
 
 describe('AgentManager Multi-Instance Support', () => {
+  describe('Multi-Agent Support for All Contexts', () => {
+    const CONTEXTS = [
+      PorterContext.ContentScript,
+      PorterContext.Extension,
+      PorterContext.Popup,
+      PorterContext.Sidepanel,
+      PorterContext.Devtools,
+      PorterContext.Options,
+    ];
+
+    function createPortWithContext(name: string, tabId: number, context: PorterContext): Runtime.Port {
+      // Simulate sender.url for extension pages
+      let url = 'http://example.com';
+      switch (context) {
+        case PorterContext.Popup:
+          url = 'chrome-extension://id/popup.html'; break;
+        case PorterContext.Sidepanel:
+          url = 'chrome-extension://id/sidepanel.html'; break;
+        case PorterContext.Devtools:
+          url = 'chrome-extension://id/devtools.html'; break;
+        case PorterContext.Options:
+          url = 'chrome-extension://id/options.html'; break;
+        case PorterContext.Extension:
+          url = 'chrome-extension://id/background.html'; break;
+        case PorterContext.ContentScript:
+        default:
+          url = 'http://example.com'; break;
+      }
+      return {
+        name,
+        disconnect: jest.fn(),
+        onDisconnect: {
+          addListener: jest.fn(),
+          removeListener: jest.fn(),
+          hasListener: jest.fn(),
+          hasListeners: jest.fn(),
+        },
+        onMessage: {
+          addListener: jest.fn(),
+          removeListener: jest.fn(),
+          hasListener: jest.fn(),
+          hasListeners: jest.fn(),
+        },
+        postMessage: jest.fn(),
+        sender: {
+          tab: { id: tabId },
+          url,
+          frameId: 0,
+        },
+      } as unknown as Runtime.Port;
+    }
+
+    CONTEXTS.forEach((context) => {
+      it(`should handle agent creation logic for context: ${context} (mixed tabs)`, () => {
+        const tabId = 5000 + CONTEXTS.indexOf(context);
+        const ports = [
+          createPortWithContext('porter:conn1', tabId, context),
+          createPortWithContext('porter:conn2', tabId, context),
+          createPortWithContext('porter:conn3', tabId, context),
+          createPortWithContext('porter:conn4', tabId + 1, context), // Different tab
+          createPortWithContext('porter:conn5', tabId + 2, context), // Different tab
+          createPortWithContext('porter:conn6', tabId, context), // Same tab
+        ];
+        const agentIds = ports.map((port) => agentManager.addAgent(port));
+        if (context === PorterContext.ContentScript) {
+          // ContentScript: each port for the same tab gets a unique agent, different tabs get their own unique agents
+          const uniqueIds = new Set(agentIds);
+          expect(uniqueIds.size).toBe(6); // 4 for tabId, tabId+1, tabId+2, and 2 for tabId (since 4 ports for tabId)
+          // Count agents for each tab
+          const agentInfoContext = agentManager.getAgentById(agentIds[0]!)?.info.location.context;
+          const agentsTabMain = agentManager.queryAgents({ context: agentInfoContext, tabId });
+          expect(agentsTabMain.length).toBe(4); // 4 ports for tabId
+          const agentsTab1 = agentManager.queryAgents({ context: agentInfoContext, tabId: tabId + 1 });
+          expect(agentsTab1.length).toBe(1);
+          const agentsTab2 = agentManager.queryAgents({ context: agentInfoContext, tabId: tabId + 2 });
+          expect(agentsTab2.length).toBe(1);
+        } else {
+          // Other contexts: only one agent per tab, so repeated tabId gets the same agent, different tabs get different agents
+          const agentInfoContext = agentManager.getAgentById(agentIds[0]!)?.info.location.context;
+          // For tabId, all ports with tabId share the same agent
+          const agentsTabMain = agentManager.queryAgents({ context: agentInfoContext, tabId });
+          expect(agentsTabMain.length).toBe(1);
+          // For tabId+1 and tabId+2, each should have one agent
+          const agentsTab1 = agentManager.queryAgents({ context: agentInfoContext, tabId: tabId + 1 });
+          expect(agentsTab1.length).toBe(1);
+          const agentsTab2 = agentManager.queryAgents({ context: agentInfoContext, tabId: tabId + 2 });
+          expect(agentsTab2.length).toBe(1);
+          // All agentIds for the same tab should be the same
+          expect(agentIds[0]).toBe(agentIds[1]);
+          expect(agentIds[0]).toBe(agentIds[2]);
+          expect(agentIds[0]).toBe(agentIds[5]);
+          // Different tabs should have different agentIds
+          expect(agentIds[3]).not.toBe(agentIds[0]);
+          expect(agentIds[4]).not.toBe(agentIds[0]);
+        }
+      });
+    });
+  });
+
+
+
+
   describe('Intensive Multi-Agent Same Tab', () => {
     const AGENT_COUNT = 100;
 

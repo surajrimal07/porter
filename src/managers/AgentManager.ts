@@ -65,8 +65,16 @@ export class AgentManager implements AgentOperations, AgentEventEmitter {
       frameId,
     });
 
-    // Always generate a new unique ID for each connection (Port)
-    const agentId = uuidv4() as AgentId;
+    let agentId: AgentId;
+
+    //Always reuse agent IDs for other contexts except content scripts
+    if (determinedContext !== PorterContext.ContentScript) {
+      const agentsAtLocation = this.getAgentByLocation({ context: determinedContext, tabId, frameId });
+      agentId = agentsAtLocation && agentsAtLocation.length > 0 ? agentsAtLocation[0].info.id : uuidv4() as AgentId;
+    } else {
+      this.logger.debug(`Content script detected, always generating new agent ID`);
+      agentId = uuidv4() as AgentId;
+    }
 
     this.logger.debug(`Adding agent with id: ${agentId}`);
 
