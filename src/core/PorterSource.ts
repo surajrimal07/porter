@@ -140,7 +140,7 @@ export class PorterSource {
     return this.agentManager.getAgentById(agentId);
   }
 
-  public getAgentByLocation(location: BrowserLocation): Agent | null {
+  public getAgentByLocation(location: BrowserLocation): Agent[] | null {
     return this.agentManager.getAgentByLocation(location);
   }
 
@@ -158,7 +158,7 @@ export interface PorterAPI {
   onDisconnect: (listener: Listener<'onDisconnect'>) => Unsubscribe;
   onMessagesSet: (listener: Listener<'onMessagesSet'>) => Unsubscribe;
   getAgentById: (id: AgentId) => Agent | null;
-  getAgentByLocation: (location: BrowserLocation) => Agent | null;
+  getAgentByLocation: (location: BrowserLocation) => Agent[] | null;
   queryAgents: (location: Partial<BrowserLocation>) => Agent[];
 }
 

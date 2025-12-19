@@ -16,7 +16,7 @@ export interface AgentOperations {
   queryAgents(location: Partial<BrowserLocation>): Agent[];
   getAgentById(id: AgentId): Agent | null;
   getAgentsByContext(context: PorterContext): Agent[];
-  getAgentByLocation(location: BrowserLocation): Agent | null;
+  getAgentByLocation(location: BrowserLocation): Agent[] | null;
   getAllAgents(): Agent[];
   getAllAgentsInfo(): AgentInfo[];
   hasPort(port: Runtime.Port): boolean;
@@ -64,26 +64,9 @@ export class AgentManager implements AgentOperations, AgentEventEmitter {
       tabId,
       frameId,
     });
-    // Find agents in the same tab or under the same extension context
-    const tabAgentsInfo = Array.from(this.agentsInfo.values()).filter(
-      (info) => {
-        return (
-          info.location.context === determinedContext &&
-          info.location.tabId === tabId &&
-          info.location.frameId === frameId
-        );
-      }
-    );
 
-    if (tabAgentsInfo.length > 0) {
-      this.logger.debug('Adding agent: Found existing similar agent.', {
-        tabAgentsInfo,
-      });
-    }
-
-    const agentId =
-      this.getAgentByLocation({ context: determinedContext, tabId, frameId })
-        ?.info?.id || (uuidv4() as AgentId);
+    // Always generate a new unique ID for each connection (Port)
+    const agentId = uuidv4() as AgentId;
 
     this.logger.debug(`Adding agent with id: ${agentId}`);
 
@@ -118,33 +101,18 @@ export class AgentManager implements AgentOperations, AgentEventEmitter {
     return agentId;
   }
 
-  public getAgentByLocation(location: BrowserLocation): Agent | null {
-    const { context, tabId, frameId } = location;
-
-    const infoEntry: [AgentId, AgentInfo] | undefined = Array.from(
-      this.agentsInfo.entries()
-    ).find(
-      ([key, info]) =>
-        info.location.context === context &&
-        info.location.tabId === tabId &&
-        info.location.frameId === frameId
+  public getAgentByLocation(location: BrowserLocation): Agent[] | null {
+    const matching = Array.from(this.agentsInfo.entries()).filter(
+      ([, value]) =>
+        value.location.context === location.context &&
+        value.location.tabId === location.tabId &&
+        value.location.frameId === location.frameId
     );
-    if (infoEntry === undefined) {
-      this.logger.error('No agent found for location. ', {
-        location,
-      });
-      return null;
-    }
-    const agentId = infoEntry[0];
-    let port = this.agents.get(agentId);
-    let info = this.agentsInfo.get(agentId);
-    if (!port || !info) {
-      this.logger.error('No agent found for location. ', {
-        location,
-      });
-      return null;
-    }
-    return { port, info };
+
+    return matching.map(([agentId, info]) => ({
+      port: this.agents.get(agentId),
+      info,
+    }));
   }
 
   public getAgentsByContext(context: PorterContext): Agent[] {
